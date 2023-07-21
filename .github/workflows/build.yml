@@ -11,15 +11,15 @@ env:
 
 jobs:
 
-  build-ol9-jdk-image:
+  build-el9-jdk-image:
     name: "Build and/or Publish OL9 Java Development Image"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java-version: [ "20.0.1", "17.0.7"]
+        java-version: [ "20.0.1", "17.0.7" ]
       fail-fast: false
     env:
-      IMAGE: shuwariafrica/ol9-jdk
+      IMAGE: shuwariafrica/el9-jdk
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -38,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE }}
 
       - name: JDK Meta
         id: jdk-meta
