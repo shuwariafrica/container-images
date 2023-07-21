@@ -1,8 +1,8 @@
 FROM oraclelinux:9
 
-ARG NODE_VERSION=18
 ARG JDK_VERSION=20.0.1
 ARG M2_VERSION=3.9.3
+ARG NODE_VERSION=18
 
 # Enable "CodeReady" Repository
 RUN dnf config-manager --set-enabled ol9_codeready_builder ol9_addons
@@ -12,8 +12,7 @@ RUN curl --retry 5 https://www.scala-sbt.org/sbt-rpm.repo > /etc/yum.repos.d/sbt
 
 # Update image, sbt, node and development tools
 RUN dnf -y module enable nodejs:${NODE_VERSION} \
-  && dnf -y distro-sync \
-  && dnf -y update \
+  && dnf -y upgrade \
   && dnf -y module install nodejs/development \
   && dnf -y install \
     autoconf \
@@ -51,4 +50,4 @@ RUN curl -L --retry 5 https://dlcdn.apache.org/maven/maven-3/${M2_VERSION}/binar
 RUN alternatives --install /usr/bin/mvn mvn /opt/apache-maven-${M2_VERSION}/bin/mvn 30000
 
 LABEL "com.azure.dev.pipelines.agent.handler.node.path"="/bin/node"
-LABEL authors="Shuwari Africa Dev Team"
+LABEL authors="Shuwari Africa Development Team"
