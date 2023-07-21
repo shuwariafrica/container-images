@@ -35,6 +35,7 @@ RUN dnf -y module enable nodejs:${NODE_VERSION} \
     unzip \
     xz \
     zip \
+    zlib-static \
   && dnf clean all
 
 # Install Graal VM / JDK
