@@ -8,7 +8,10 @@ ARG NODE_VERSION=18
 RUN dnf config-manager --set-enabled ol9_codeready_builder ol9_addons
 
 # Enable sbt Repository
-RUN curl --retry 5 https://www.scala-sbt.org/sbt-rpm.repo > /etc/yum.repos.d/sbt-rpm.repo
+RUN dnf config-manager --add-repo https://www.scala-sbt.org/sbt-rpm.repo
+
+# Enable docker repository
+RUN dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
 # Update image, sbt, node and development tools
 RUN dnf -y module enable nodejs:${NODE_VERSION} \
@@ -20,6 +23,11 @@ RUN dnf -y module enable nodejs:${NODE_VERSION} \
     binutils \
     bzip2 \
     clang \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-ce \
+    docker-ce-cli \
+    docker-compose-plugin \
     ed \
     gdb \
     git \
