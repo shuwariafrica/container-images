@@ -13,6 +13,10 @@ RUN dnf config-manager --add-repo https://www.scala-sbt.org/sbt-rpm.repo
 # Enable docker repository
 RUN dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
+# Enable the Microsoft repository
+RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc
+RUN dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+
 # Update image, sbt, node and development tools
 RUN dnf -y module enable nodejs:${NODE_VERSION} \
   && dnf -y upgrade \
@@ -20,6 +24,7 @@ RUN dnf -y module enable nodejs:${NODE_VERSION} \
   && dnf -y install \
     autoconf \
     automake \
+    azure-cli \
     binutils \
     bzip2 \
     clang \
