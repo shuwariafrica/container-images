@@ -1,7 +1,7 @@
 FROM oraclelinux:9
 
 ARG JDK_VERSION=20.0.1
-ARG M2_VERSION=3.9.3
+ARG M2_VERSION=3.9.4
 ARG NODE_VERSION=18
 ARG DOTNET_VERSION=7.0
 
@@ -62,7 +62,7 @@ RUN ${JAVA_HOME}/bin/gu install native-image
 RUN for ex in "${JAVA_HOME}/bin/"*; do f="$(basename "${ex}")"; [ ! -e "/usr/bin/${f}" ]; alternatives --install "/usr/bin/${f}" "${f}" "${ex}" 30000; done
 
 # Install Maven
-RUN curl -L --retry 5 https://dlcdn.apache.org/maven/maven-3/${M2_VERSION}/binaries/apache-maven-${M2_VERSION}-bin.tar.gz | tar xzf - -C /opt
+RUN curl -L --retry 5 https://archive.apache.org/dist/maven/maven-3/${M2_VERSION}/binaries/apache-maven-${M2_VERSION}-bin.tar.gz | tar xzf - -C /opt
 RUN alternatives --install /usr/bin/mvn mvn /opt/apache-maven-${M2_VERSION}/bin/mvn 30000
 
 LABEL "com.azure.dev.pipelines.agent.handler.node.path"="/bin/node"
