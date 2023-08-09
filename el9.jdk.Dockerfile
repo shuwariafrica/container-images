@@ -3,6 +3,7 @@ FROM oraclelinux:9
 ARG JDK_VERSION=20.0.1
 ARG M2_VERSION=3.9.3
 ARG NODE_VERSION=18
+ARG DOTNET_VERSION=7.0
 
 # Enable "CodeReady" Repository
 RUN dnf config-manager --set-enabled ol9_codeready_builder ol9_addons
@@ -33,6 +34,7 @@ RUN dnf -y module enable nodejs:${NODE_VERSION} \
     docker-ce \
     docker-ce-cli \
     docker-compose-plugin \
+    dotnet-sdk-${DOTNET_VERSION} \
     ed \
     gdb \
     git \
