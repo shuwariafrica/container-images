@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java-version: [ "20.0.1", "17.0.7" ]
+        java-version: [ "21.0.0", "17.0.8" ]
       fail-fast: false
     env:
       IMAGE: shuwariafrica/el9-jdk
