@@ -57,7 +57,6 @@ RUN dnf -y module enable nodejs:${NODE_VERSION} \
 ENV JAVA_HOME=/opt/graalvm-community-openjdk-${JDK_VERSION}
 RUN curl -L --retry 5 https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${JDK_VERSION}/graalvm-community-jdk-${JDK_VERSION}_linux-x64_bin.tar.gz | tar xzf - -C /opt
 RUN mv /opt/graalvm-* ${JAVA_HOME}
-RUN ${JAVA_HOME}/bin/gu install native-image
 # Add Graal Binaries as alternatives
 RUN for ex in "${JAVA_HOME}/bin/"*; do f="$(basename "${ex}")"; [ ! -e "/usr/bin/${f}" ]; alternatives --install "/usr/bin/${f}" "${f}" "${ex}" 30000; done
 
