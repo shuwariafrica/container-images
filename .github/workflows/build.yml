@@ -117,7 +117,7 @@ jobs:
   merge:
     name: "[${{ matrix.image }}: JDK ${{ matrix.java-version }}] Merge multi-arch manifest"
     needs: build
-    if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+    if: github.event_name != 'pull_request' && github.repository == 'shuwariafrica/container-images'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
