@@ -10,13 +10,13 @@ OCI base container images used for Scala 3 / Scala Native development at Shuwari
 | `shuwariafrica/el10-jdk:<jdk>`   | Oracle Linux 10   | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the RHEL family.    |
 | `shuwariafrica/alpine-jdk:<jdk>` | Alpine Linux      | musl  | Yes            | Scala 3 / Scala Native fully-static builds.       |
 
-The `<jdk>` tag is the JDK major version. Supported: `17`, `21`, `25`.
+The `<jdk>` tag is the JDK major version. Supported: `17`, `21`, `25`. All published tags are multi-arch (`linux/amd64` and `linux/arm64`).
 
 Each successful publish also produces an immutable tag `<jdk>-<short-hash>`, where `<short-hash>` is derived from the full installed package manifest. The CI build only publishes when this hash differs from what is already on the registry, so the monthly cron is a no-op when nothing upstream has changed.
 
 ## Scope
 
-These are intentionally minimal Scala Native build images - JDK, sbt, and the C/LLVM toolchain plus the libraries Scala Native links against. They do not include Docker, Azure CLI, .NET, or Node. Extended images that layer those tools may be published separately.
+These are intentionally minimal Scala Native build images - JDK, sbt, and the C/LLVM toolchain plus the libraries Scala Native links against.
 
 ## Licensing notes
 
