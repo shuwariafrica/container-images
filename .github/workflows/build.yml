@@ -129,14 +129,14 @@ jobs:
 
     steps:
       - name: Download digest artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digest-${{ matrix.image }}-${{ matrix.java-version }}-*
           merge-multiple: true
 
       - name: Download manifest hash artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hash-${{ matrix.image }}-${{ matrix.java-version }}
           path: /tmp/hash
