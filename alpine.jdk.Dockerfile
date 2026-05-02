@@ -51,6 +51,8 @@ RUN curl -fL --retry 5 "https://github.com/sbt/sbt/releases/download/v${SBT_VERS
  && ln -s /opt/sbt/bin/sbtn /usr/local/bin/sbtn \
  && echo "${SBT_VERSION}" > /etc/sbt-version
 
+RUN git config --system --add safe.directory '*'
+
 FROM base AS final
 
 ARG JDK_VERSION=21

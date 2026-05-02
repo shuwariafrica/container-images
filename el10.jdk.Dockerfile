@@ -47,6 +47,8 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
  && dnf clean all \
  && rm -rf /var/cache/dnf/* /tmp/*
 
+RUN git config --system --add safe.directory '*'
+
 FROM base AS final
 
 ARG JDK_VERSION=21
