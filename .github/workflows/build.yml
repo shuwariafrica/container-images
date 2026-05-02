@@ -158,9 +158,15 @@ jobs:
         id: gate
         run: |
           IMMUTABLE="${IMAGE}:${{ matrix.java-version }}-${{ steps.vh.outputs.short }}"
-          if docker buildx imagetools inspect "$IMMUTABLE" >/dev/null 2>&1; then
-            echo "Skipping merge: $IMMUTABLE already exists."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          if RAW=$(docker buildx imagetools inspect --raw "$IMMUTABLE" 2>/dev/null); then
+            PLATFORM_COUNT=$(echo "$RAW" | jq -r '.manifests[]?.platform.architecture // empty' | grep -E '^(amd64|arm64)$' | sort -u | wc -l)
+            if [ "$PLATFORM_COUNT" -ge 2 ]; then
+              echo "Skipping merge: $IMMUTABLE already exists as a multi-arch manifest."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Re-publishing: $IMMUTABLE exists but is not multi-arch (found $PLATFORM_COUNT linux/* manifest(s))."
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "Will merge: $IMMUTABLE is new."
             echo "skip=false" >> "$GITHUB_OUTPUT"
