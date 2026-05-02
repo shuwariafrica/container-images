@@ -28,11 +28,16 @@ Alpine's `gc-dev` package only ships shared libraries; there is no `libgc.a`. Th
 
 ## Using `alpine-jdk` as a GitHub Actions container on arm64
 
-GitHub Actions's runner (`actions/runner`) carries a hardcoded check that refuses to launch JavaScript actions inside an Alpine container on arm64 hosts (it ships musl Node externals only for x64). The check is purely a substring search for `"alpine"` in lines starting with `ID` from `/etc/*release` inside the container - see [`StepHost.cs`](https://github.com/actions/runner/blob/main/src/Runner.Worker/Handlers/StepHost.cs).
+`alpine-jdk` cannot be used as a `container:` on `ubuntu-24.04-arm` runners. `actions/runner` refuses to launch JavaScript actions inside an Alpine container on arm64 hosts ([StepHost.cs](https://github.com/actions/runner/blob/main/src/Runner.Worker/Handlers/StepHost.cs)) because it ships no musl/arm64 Node externals; bypassing the detection only swaps the failure for a glibc-binary relocation error against musl, which `gcompat` does not fully cover. The limitation is tracked at [actions/runner#801](https://github.com/actions/runner/issues/801).
 
-`alpine-jdk` works around this by:
+Workarounds for arm64 jobs that need the musl/static-link toolchain:
 
-- Renaming `ID=alpine` to `ID=linux` in `/etc/os-release` (other identification paths - `NAME`, `PRETTY_NAME`, `/etc/alpine-release`, the `apk` toolchain - are untouched).
-- Bundling `gcompat`, the glibc-shim package, so the runner's default glibc-built Node binary can execute on musl.
+- Use `shuwariafrica/el10-jdk:<jdk>` as the `container:` on arm64 - it is glibc-based, so the runner gate does not apply.
+- Or drop the `container:` syntax and run on `ubuntu-24.04-arm` directly, invoking the Alpine image inline:
+    ```yaml
+    - run: |
+        docker run --rm -v "$PWD:/work" -w /work shuwariafrica/alpine-jdk:21 \
+          sh -c 'sbt test'
+    ```
 
-The combination lets `shuwariafrica/alpine-jdk:<jdk>` be used as a `container:` on `ubuntu-24.04-arm` runners without hitting the upstream gate. If a future runner release ships native musl/arm64 Node externals, this workaround will be removed.
+On `linux/amd64` the issue does not apply and `alpine-jdk` works as a `container:` normally.

@@ -54,9 +54,6 @@ RUN curl -fL --retry 5 "https://github.com/sbt/sbt/releases/download/v${SBT_VERS
 
 RUN git config --system --add safe.directory '*'
 
-# Bypass actions/runner alpine arm64 gate (greps ^ID for "alpine"); paired with gcompat.
-RUN sed -i 's/^ID=alpine$/ID=linux/' /etc/os-release
-
 FROM base AS final
 
 ARG JDK_VERSION=21
