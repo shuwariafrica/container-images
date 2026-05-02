@@ -25,3 +25,14 @@ The `el10-jdk` image is built on glibc and deliberately omits any `*-static` lib
 ## Notes on Scala Native garbage collectors on Alpine
 
 Alpine's `gc-dev` package only ships shared libraries; there is no `libgc.a`. This means **Boehm GC cannot be statically linked** on `alpine-jdk` without building libgc from source. The default Scala Native GC (Immix) is built into the Scala Native runtime and does not require an external static library, so the standard fully-static build path works out of the box. Commix likewise needs no external GC library.
+
+## Using `alpine-jdk` as a GitHub Actions container on arm64
+
+GitHub Actions's runner (`actions/runner`) carries a hardcoded check that refuses to launch JavaScript actions inside an Alpine container on arm64 hosts (it ships musl Node externals only for x64). The check is purely a substring search for `"alpine"` in lines starting with `ID` from `/etc/*release` inside the container - see [`StepHost.cs`](https://github.com/actions/runner/blob/main/src/Runner.Worker/Handlers/StepHost.cs).
+
+`alpine-jdk` works around this by:
+
+- Renaming `ID=alpine` to `ID=linux` in `/etc/os-release` (other identification paths - `NAME`, `PRETTY_NAME`, `/etc/alpine-release`, the `apk` toolchain - are untouched).
+- Bundling `gcompat`, the glibc-shim package, so the runner's default glibc-built Node binary can execute on musl.
+
+The combination lets `shuwariafrica/alpine-jdk:<jdk>` be used as a `container:` on `ubuntu-24.04-arm` runners without hitting the upstream gate. If a future runner release ships native musl/arm64 Node externals, this workaround will be removed.

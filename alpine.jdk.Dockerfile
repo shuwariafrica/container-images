@@ -20,6 +20,7 @@ RUN apk upgrade --no-cache \
       g++ \
       gc-dev \
       gcc \
+      gcompat \
       gdb \
       git \
       graphviz \
@@ -52,6 +53,9 @@ RUN curl -fL --retry 5 "https://github.com/sbt/sbt/releases/download/v${SBT_VERS
  && echo "${SBT_VERSION}" > /etc/sbt-version
 
 RUN git config --system --add safe.directory '*'
+
+# Bypass actions/runner alpine arm64 gate (greps ^ID for "alpine"); paired with gcompat.
+RUN sed -i 's/^ID=alpine$/ID=linux/' /etc/os-release
 
 FROM base AS final
 
