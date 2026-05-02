@@ -41,6 +41,7 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       sudo \
       tar \
       unzip \
+      which \
       xz \
       zip \
       zlib-devel \
