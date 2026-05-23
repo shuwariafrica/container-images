@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, ubuntu26 ]
+        image: [ el10, alpine, alpine-edge, ubuntu26, rawhide ]
         java-version: [ "17", "21", "25" ]
         platform: [ amd64, arm64 ]
         include:
@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, ubuntu26 ]
+        image: [ el10, alpine, alpine-edge, ubuntu26, rawhide ]
         java-version: [ "17", "21", "25" ]
     env:
       IMAGE: shuwariafrica/${{ matrix.image }}-jdk
