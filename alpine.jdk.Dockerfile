@@ -24,6 +24,7 @@ RUN apk upgrade --no-cache \
       gcompat \
       gdb \
       git \
+      gnupg \
       graphviz \
       libc-dev \
       libunwind-dev \

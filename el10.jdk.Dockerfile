@@ -27,6 +27,7 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       gcc \
       gcc-c++ \
       gdb \
+      gnupg2 \
       git \
       graphviz \
       libstdc++-devel \
