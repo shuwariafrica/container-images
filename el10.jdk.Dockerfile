@@ -33,6 +33,7 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       libunwind-devel \
       libuv-devel \
       lld \
+      llvm-toolset \
       make \
       pkgconf-pkg-config \
       re2-devel \

@@ -2,7 +2,7 @@ ARG ALPINE_VERSION=3.23
 
 FROM alpine:${ALPINE_VERSION} AS base
 
-ARG SBT_VERSION=1.12.10
+ARG SBT_VERSION=1.12.11
 
 RUN apk upgrade --no-cache \
  && apk add --no-cache \
@@ -13,6 +13,7 @@ RUN apk upgrade --no-cache \
       bzip2 \
       ca-certificates \
       clang \
+      clang-extra-tools \
       cmake \
       coreutils \
       curl \
