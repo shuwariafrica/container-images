@@ -37,6 +37,8 @@ RUN apk upgrade --no-cache \
       musl-dev \
       ncurses \
       openssh-client \
+      openssl-dev \
+      openssl-libs-static \
       pkgconfig \
       re2-dev \
       rsync \

@@ -33,6 +33,7 @@ RUN apt-get update \
       git \
       graphviz \
       libgc-dev \
+      libssl-dev \
       libunwind-dev \
       libuv1-dev \
       lld \

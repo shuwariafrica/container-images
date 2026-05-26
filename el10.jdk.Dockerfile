@@ -36,6 +36,7 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       lld \
       llvm-toolset \
       make \
+      openssl-devel \
       pkgconf-pkg-config \
       re2-devel \
       rsync \

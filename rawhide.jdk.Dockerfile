@@ -35,6 +35,7 @@ RUN dnf -y upgrade \
       lld \
       make \
       openssh-clients \
+      openssl-devel \
       pkgconf-pkg-config \
       re2-devel \
       rsync \
