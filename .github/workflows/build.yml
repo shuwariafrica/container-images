@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, alpine-edge, ubuntu26, rawhide ]
+        image: [ el10, alpine, alpine-edge, ubuntu26, fedora, rawhide ]
         java-version: [ "17", "21", "25" ]
         platform: [ amd64, arm64 ]
         include:
@@ -26,6 +26,14 @@ jobs:
             runner: ubuntu-latest
           - platform: arm64
             runner: ubuntu-24.04-arm
+          - image: alpine-edge
+            dockerfile: alpine.jdk.Dockerfile
+            extra-build-args: "ALPINE_VERSION=edge"
+          - image: fedora
+            dockerfile: fedora.jdk.Dockerfile
+          - image: rawhide
+            dockerfile: fedora.jdk.Dockerfile
+            extra-build-args: "FEDORA_VERSION=rawhide"
     env:
       IMAGE: shuwariafrica/${{ matrix.image }}-jdk
       LOCAL_TAG: build-${{ matrix.image }}-${{ matrix.java-version }}:current
@@ -49,12 +57,13 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ${{ matrix.image }}.jdk.Dockerfile
+          file: ${{ matrix.dockerfile || format('{0}.jdk.Dockerfile', matrix.image) }}
           platforms: linux/amd64
           load: true
           tags: ${{ env.LOCAL_TAG }}
           build-args: |
             JDK_VERSION=${{ matrix.java-version }}
+            ${{ matrix.extra-build-args }}
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
           cache-to: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }},mode=max
 
@@ -74,10 +83,11 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ${{ matrix.image }}.jdk.Dockerfile
+          file: ${{ matrix.dockerfile || format('{0}.jdk.Dockerfile', matrix.image) }}
           platforms: linux/${{ matrix.platform }}
           build-args: |
             JDK_VERSION=${{ matrix.java-version }}
+            ${{ matrix.extra-build-args }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
           cache-to: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }},mode=max
@@ -122,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, alpine-edge, ubuntu26, rawhide ]
+        image: [ el10, alpine, alpine-edge, ubuntu26, fedora, rawhide ]
         java-version: [ "17", "21", "25" ]
     env:
       IMAGE: shuwariafrica/${{ matrix.image }}-jdk

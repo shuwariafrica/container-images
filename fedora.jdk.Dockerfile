@@ -1,4 +1,6 @@
-FROM fedora:rawhide AS base
+ARG FEDORA_VERSION=latest
+
+FROM fedora:${FEDORA_VERSION} AS base
 
 ARG SBT_VERSION=1.12.11
 
@@ -23,6 +25,7 @@ RUN dnf -y upgrade \
       cmake \
       curl \
       ed \
+      file \
       gc-devel \
       gcc \
       gcc-c++ \
@@ -59,6 +62,7 @@ RUN git config --system --add safe.directory '*'
 
 FROM base AS final
 
+ARG FEDORA_VERSION=latest
 ARG JDK_VERSION=21
 
 RUN dnf -y install "temurin-${JDK_VERSION}-jdk" \
@@ -73,5 +77,5 @@ RUN { rpm -qa | sort; echo "sbt-$(cat /etc/sbt-version)"; "${JAVA_HOME}/bin/java
  && sha256sum /etc/image-manifest | awk '{print $1}' > /etc/image-manifest.sha256
 
 LABEL authors="Shuwari Africa Development Team"
-LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Fedora Linux (Rawhide) with Eclipse Temurin JDK"
+LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Fedora Linux (${FEDORA_VERSION}) with Eclipse Temurin JDK"
 LABEL org.opencontainers.image.source="https://github.com/shuwariafrica/container-images"

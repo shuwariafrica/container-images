@@ -23,6 +23,7 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       cmake \
       curl \
       ed \
+      file \
       gc-devel \
       gcc \
       gcc-c++ \

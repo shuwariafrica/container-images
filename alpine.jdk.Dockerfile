@@ -18,6 +18,7 @@ RUN apk upgrade --no-cache \
       coreutils \
       curl \
       ed \
+      file \
       g++ \
       gc-dev \
       gcc \

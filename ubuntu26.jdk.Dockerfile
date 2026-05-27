@@ -27,6 +27,7 @@ RUN apt-get update \
       cmake \
       coreutils \
       ed \
+      file \
       g++ \
       gcc \
       gdb \
