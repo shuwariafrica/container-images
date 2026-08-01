@@ -5,10 +5,37 @@ OCI base container images used for Scala 3 / Scala Native development at Shuwari
 
 ## Images
 
-| Image                            | Base              | libc  | Static linking | Intended use                                      |
-| -------------------------------- | ----------------- | ----- | -------------- | ------------------------------------------------- |
-| `shuwariafrica/el10-jdk:<jdk>`   | Oracle Linux 10   | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the RHEL family.    |
-| `shuwariafrica/alpine-jdk:<jdk>` | Alpine Linux      | musl  | Yes            | Scala 3 / Scala Native fully-static builds.       |
+| Image                                 | Base                  | libc  | Static linking | Intended use                                              |
+| ------------------------------------- | --------------------- | ----- | -------------- | --------------------------------------------------------- |
+| `shuwariafrica/el10-jdk:<jdk>`        | Oracle Linux 10       | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the RHEL family.            |
+| `shuwariafrica/alpine-jdk:<jdk>`      | Alpine Linux          | musl  | Yes            | Scala 3 / Scala Native fully-static builds.               |
+| `shuwariafrica/alpine-edge-jdk:<jdk>` | Alpine edge           | musl  | Yes            | As above, against Alpine's rolling branch.                |
+| `shuwariafrica/ubuntu26-jdk:<jdk>`    | Ubuntu 26.04          | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the Debian family.          |
+| `shuwariafrica/fedora-jdk:<jdk>`      | Fedora (latest)       | glibc | No (dynamic)   | Newer toolchain than the enterprise bases.                |
+| `shuwariafrica/rawhide-jdk:<jdk>`     | Fedora rawhide        | glibc | No (dynamic)   | Bleeding edge; expect occasional upstream churn.          |
+| `shuwariafrica/opensuse-jdk:<jdk>`    | openSUSE Tumbleweed   | glibc | No (dynamic)   | Rolling release: current LLVM, GTK4/Qt6 and Mesa.         |
+
+`JAVA_HOME` is `/opt/jdk` on every image, whatever provides the JDK.
+
+| Image | JDK source |
+| ----- | ---------- |
+| `alpine-jdk`, `alpine-edge-jdk`, `opensuse-jdk` | the distribution's own OpenJDK |
+| `el10-jdk`, `fedora-jdk`, `rawhide-jdk`, `ubuntu26-jdk` | Eclipse Temurin, from the Adoptium repository |
+
+Adoptium publishes nothing usable for openSUSE — Leap 15.1–15.5 only, all end-of-life.
+What each distribution ships natively:
+
+| Base | 17 | 21 | 25 |
+| ---- | -- | -- | -- |
+| Ubuntu 26.04 | yes | yes | yes |
+| Alpine (stable and edge) | yes | yes | yes |
+| openSUSE Tumbleweed | yes | yes | yes |
+| Oracle Linux 10 | **no** | yes | yes |
+| Fedora (latest and rawhide) | **no** | **no** | yes |
+
+`sbt` comes from the distribution repository on every image that has one; Alpine has none,
+so it keeps a pinned tarball in `ARG SBT_VERSION`. Dependabot's `docker` ecosystem rewrites
+`FROM` lines only and will not bump that ARG — it needs a Renovate regex manager.
 
 The `<jdk>` tag is the JDK major version. Supported: `17`, `21`, `25`. All published tags are multi-arch (`linux/amd64` and `linux/arm64`).
 
