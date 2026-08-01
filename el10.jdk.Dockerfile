@@ -12,7 +12,6 @@ EOF
 RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
  && dnf config-manager --set-enabled ol10_codeready_builder \
  && dnf -y upgrade \
- && dnf config-manager --add-repo https://www.scala-sbt.org/sbt-rpm.repo \
  && dnf -y install \
       autoconf \
       automake \
@@ -41,7 +40,6 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       pkgconf-pkg-config \
       re2-devel \
       rsync \
-      sbt \
       sudo \
       tar \
       unzip \
@@ -51,6 +49,35 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
       zlib-devel \
  && dnf clean all \
  && rm -rf /var/cache/dnf/* /tmp/*
+
+# sbt is noarch and requires only /bin/sh, /usr/bin/env and coreutils, so it pulls no JVM
+# into this stage. It resolves each project's own version, so it tracks the repository
+# rather than a pin.
+#
+# Packages are unsigned upstream, so gpgcheck cannot be enabled; repomd.xml.asc is signed
+# and the metadata carries package checksums, so repo_gpgcheck can. The published
+# sbt-rpm.repo sets both to 0, hence writing it out rather than `config-manager
+# --add-repo`. gpgkey= is required as well, because dnf does not consult the rpm keyring
+# for repo_gpgcheck.
+ARG SBT_RPM_KEY_FPR=2EE0EA64E40A89B84B2DF73499E82A75642AC823
+RUN curl -fsSL https://repo.scala-sbt.org/scalasbt/rpm/repodata/repomd.xml.key -o /tmp/sbt.key \
+ && got="$(gpg --show-keys --with-colons /tmp/sbt.key | awk -F: '/^fpr:/ {print $10; exit}')" \
+ && { [ "${got}" = "${SBT_RPM_KEY_FPR}" ] \
+      || { echo "sbt repo key fingerprint mismatch: got ${got:-<none>}" >&2; exit 1; }; } \
+ && install -D -m 0644 /tmp/sbt.key /etc/pki/rpm-gpg/RPM-GPG-KEY-sbt \
+ && rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-sbt \
+ && rm -f /tmp/sbt.key \
+ && printf '%s\n' \
+      '[sbt-rpm]' \
+      'name=sbt-rpm' \
+      'baseurl=https://repo.scala-sbt.org/scalasbt/rpm' \
+      'enabled=1' \
+      'gpgcheck=0' \
+      'repo_gpgcheck=1' \
+      'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sbt' > /etc/yum.repos.d/sbt-rpm.repo \
+ && dnf -y install sbt \
+ && dnf clean all \
+ && rm -rf /var/cache/dnf/*
 
 RUN git config --system --add safe.directory '*'
 

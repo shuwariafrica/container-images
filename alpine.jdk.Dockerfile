@@ -2,7 +2,7 @@ ARG ALPINE_VERSION=3.23
 
 FROM alpine:${ALPINE_VERSION} AS base
 
-ARG SBT_VERSION=1.12.11
+ARG SBT_VERSION=2.0.4
 
 RUN apk upgrade --no-cache \
  && apk add --no-cache \

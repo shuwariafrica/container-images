@@ -1,6 +1,5 @@
 FROM ubuntu:26.04 AS base
 
-ARG SBT_VERSION=1.12.11
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -52,11 +51,26 @@ RUN apt-get update \
       zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fL --retry 5 "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz" \
-      | tar xzf - -C /opt \
- && ln -s /opt/sbt/bin/sbt  /usr/local/bin/sbt \
- && ln -s /opt/sbt/bin/sbtn /usr/local/bin/sbtn \
- && echo "${SBT_VERSION}" > /etc/sbt-version
+# sbt's Debian repository is a single arch-independent package (suite `all`), and it
+# resolves each project's own version, so it tracks the repository rather than a pin.
+#
+# The key is fetched from repo.scala-sbt.org rather than keyserver.ubuntu.com, which sbt's
+# instructions use: both serve identical material, but the keyserver is an extra host that
+# can fail, and it has. The fingerprint is verified before use, which is what makes the
+# source irrelevant to trust.
+ARG SBT_KEY_FPR=2EE0EA64E40A89B84B2DF73499E82A75642AC823
+RUN curl -fsSL --retry 5 \
+      https://repo.scala-sbt.org/scalasbt/rpm/repodata/repomd.xml.key -o /tmp/sbt.key \
+ && got="$(gpg --show-keys --with-colons /tmp/sbt.key | awk -F: '/^fpr:/ {print $10; exit}')" \
+ && { [ "${got}" = "${SBT_KEY_FPR}" ] \
+      || { echo "sbt repo key fingerprint mismatch: got ${got:-<none>}" >&2; exit 1; }; } \
+ && gpg --dearmor -o /etc/apt/keyrings/scalasbt.gpg /tmp/sbt.key \
+ && rm -f /tmp/sbt.key \
+ && echo "deb [signed-by=/etc/apt/keyrings/scalasbt.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+      > /etc/apt/sources.list.d/sbt.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends sbt \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN git config --system --add safe.directory '*'
 
@@ -71,9 +85,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/opt/jdk
-ENV PATH=${JAVA_HOME}/bin:/opt/sbt/bin:${PATH}
+ENV PATH=${JAVA_HOME}/bin:${PATH}
 
-RUN { dpkg -l | sort; echo "sbt-$(cat /etc/sbt-version)"; "${JAVA_HOME}/bin/java" -version 2>&1; } > /etc/image-manifest \
+RUN { dpkg -l | sort; "${JAVA_HOME}/bin/java" -version 2>&1; } > /etc/image-manifest \
  && sha256sum /etc/image-manifest | awk '{print $1}' > /etc/image-manifest.sha256
 
 LABEL authors="Shuwari Africa Development Team"
