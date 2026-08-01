@@ -52,8 +52,11 @@ RUN dnf -y install dnf-plugins-core oracle-epel-release-el10 \
  && dnf clean all \
  && rm -rf /var/cache/dnf/* /tmp/*
 
+# Invoked via `sh`, not executed directly: the file mode does not survive every checkout
+# (a Windows-authored commit lands as 100644) and a non-executable script fails with the
+# bare exit code 126.
 COPY scripts/install-sbt.sh /tmp/install-sbt.sh
-RUN /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
+RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
 
 RUN git config --system --add safe.directory '*'
 
