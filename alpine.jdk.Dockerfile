@@ -51,11 +51,8 @@ RUN apk upgrade --no-cache \
       zlib-dev \
       zlib-static
 
-RUN curl -fL --retry 5 "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz" \
-      | tar xzf - -C /opt \
- && ln -s /opt/sbt/bin/sbt  /usr/local/bin/sbt \
- && ln -s /opt/sbt/bin/sbtn /usr/local/bin/sbtn \
- && echo "${SBT_VERSION}" > /etc/sbt-version
+COPY scripts/install-sbt.sh /tmp/install-sbt.sh
+RUN /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
 
 RUN git config --system --add safe.directory '*'
 
