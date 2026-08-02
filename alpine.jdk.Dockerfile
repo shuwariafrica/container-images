@@ -1,8 +1,12 @@
-ARG ALPINE_VERSION=3.23
+# No ARG defaults: a bare `docker build` must fail rather than silently build an
+# unpinned base. docker-bake.hcl supplies every value.
+# Builds both the alpine and alpine-edge families; only BASE_IMAGE differs.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS base
 
-FROM alpine:${ALPINE_VERSION} AS base
-
-ARG SBT_VERSION=2.0.4
+ARG SBT_VERSION
+ARG SBT_SHA256
+ARG SBT_BASE_URL
 
 RUN apk upgrade --no-cache \
  && apk add --no-cache \
@@ -28,6 +32,7 @@ RUN apk upgrade --no-cache \
       gnupg \
       graphviz \
       libc-dev \
+      libtool \
       libunwind-dev \
       libunwind-static \
       libuv-dev \
@@ -51,21 +56,21 @@ RUN apk upgrade --no-cache \
       zlib-dev \
       zlib-static
 
-# Invoked via `sh`, not executed directly: the file mode does not survive every checkout
-# (a Windows-authored commit lands as 100644) and a non-executable script fails with the
-# bare exit code 126.
+# Invoked via `sh`: the executable bit does not survive a Windows-authored checkout,
+# and a non-executable script fails with the bare exit code 126.
 COPY scripts/install-sbt.sh /tmp/install-sbt.sh
-RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
-
-RUN git config --system --add safe.directory '*'
+RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" "${SBT_SHA256}" "${SBT_BASE_URL}" && rm -f /tmp/install-sbt.sh
 
 FROM base AS final
 
-ARG JDK_VERSION=21
+ARG JDK_VERSION
 
-RUN apk add --no-cache openjdk${JDK_VERSION}-jdk
+# default-jvm resolves to the only JDK installed here; a second would silently
+# repoint /opt/jdk.
+RUN apk add --no-cache openjdk${JDK_VERSION}-jdk \
+ && ln -s /usr/lib/jvm/default-jvm /opt/jdk
 
-ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+ENV JAVA_HOME=/opt/jdk
 ENV PATH=$JAVA_HOME/bin:/opt/sbt/bin:$PATH
 
 RUN { apk info -vv | sort; echo "sbt-$(cat /etc/sbt-version)"; } > /etc/image-manifest \

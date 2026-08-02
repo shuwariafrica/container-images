@@ -1,196 +1,145 @@
+name: build
+
 on:
-  schedule:
-    - cron: '0 1 5 * *'
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  # Base digests are pinned, so this rebuild is the only thing that picks up
+  # distribution package updates. The immutable-tag hash gates publishing, so a
+  # run that resolves identical packages pushes no new tag.
+  schedule:
+    - cron: "0 1 * * 1"
   workflow_dispatch:
 
 env:
   SOURCE_REPOSITORY: shuwariafrica/container-images
 
 jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      # The bake file is the only definition of the build matrix.
+      - id: list
+        run: |
+          matrix=$(docker buildx bake --print 2>/dev/null | jq -c '[.target | keys[]]')
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
 
   build:
-    name: "[${{ matrix.image }}: JDK ${{ matrix.java-version }} / ${{ matrix.platform }}] Build"
-    runs-on: ${{ matrix.runner }}
+    needs: targets
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, alpine-edge, ubuntu26, fedora, rawhide, opensuse ]
-        java-version: [ "17", "21", "25" ]
-        platform: [ amd64, arm64 ]
-        include:
-          - platform: amd64
+        target: ${{ fromJson(needs.targets.outputs.matrix) }}
+        platform:
+          - arch: amd64
             runner: ubuntu-latest
-          - platform: arm64
+          - arch: arm64
             runner: ubuntu-24.04-arm
-          - image: alpine-edge
-            dockerfile: alpine.jdk.Dockerfile
-            extra-build-args: "ALPINE_VERSION=edge"
-          - image: fedora
-            dockerfile: fedora.jdk.Dockerfile
-          - image: rawhide
-            dockerfile: fedora.jdk.Dockerfile
-            extra-build-args: "FEDORA_VERSION=rawhide"
-    env:
-      IMAGE: shuwariafrica/${{ matrix.image }}-jdk
-      LOCAL_TAG: build-${{ matrix.image }}-${{ matrix.java-version }}:current
-
+    runs-on: ${{ matrix.platform.runner }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        uses: docker/login-action@v4
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_KEY }}
 
-      - name: Build local image (amd64 only, for manifest hash)
-        if: matrix.platform == 'amd64'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.dockerfile || format('{0}.jdk.Dockerfile', matrix.image) }}
-          platforms: linux/amd64
-          load: true
-          tags: ${{ env.LOCAL_TAG }}
-          build-args: |
-            JDK_VERSION=${{ matrix.java-version }}
-            ${{ matrix.extra-build-args }}
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
-          cache-to: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }},mode=max
-
-      - name: Compute manifest hash (amd64 only)
-        if: matrix.platform == 'amd64'
-        id: vh
+      # Nothing is pushed. ATTEST=false because the docker exporter cannot carry
+      # attestations, and `--set '*.attest='` does not clear them.
+      - name: Build (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          ATTEST: "false"
         run: |
-          HASH=$(docker run --rm "$LOCAL_TAG" cat /etc/image-manifest.sha256 | tr -d '[:space:]')
-          SHORT="${HASH:0:12}"
-          echo "hash=$HASH"   >> "$GITHUB_OUTPUT"
-          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
-          echo "Image manifest hash: $HASH"
+          docker buildx bake "${{ matrix.target }}" \
+            --set "*.platform=linux/${{ matrix.platform.arch }}" \
+            --set "*.output=type=docker,name=local/${{ matrix.target }}" \
+            --set "*.cache-from=type=gha,scope=${{ matrix.target }}-${{ matrix.platform.arch }}" \
+            --set "*.cache-to=type=gha,scope=${{ matrix.target }}-${{ matrix.platform.arch }},mode=max"
+          docker run --rm "local/${{ matrix.target }}" cat /etc/image-manifest.sha256
 
-      - name: Build & push by digest
+      - name: Build and push by digest
+        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
         id: push
-        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.dockerfile || format('{0}.jdk.Dockerfile', matrix.image) }}
-          platforms: linux/${{ matrix.platform }}
-          build-args: |
-            JDK_VERSION=${{ matrix.java-version }}
-            ${{ matrix.extra-build-args }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
-          cache-to: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }},mode=max
-
-      - name: Stage digest for upload
-        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
         run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.push.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest artifact
-        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        uses: actions/upload-artifact@v7
+          repo="docker.io/${SOURCE_REPOSITORY%%/*}/$(echo '${{ matrix.target }}' | sed 's/-jdk[0-9]*$//')-jdk"
+          docker buildx bake "${{ matrix.target }}" \
+            --set "*.platform=linux/${{ matrix.platform.arch }}" \
+            --set "*.tags=" \
+            --set "*.output=type=image,name=${repo},push-by-digest=true,name-canonical=true,push=true" \
+            --set "*.cache-from=type=gha,scope=${{ matrix.target }}-${{ matrix.platform.arch }}" \
+            --set "*.cache-to=type=gha,scope=${{ matrix.target }}-${{ matrix.platform.arch }},mode=max" \
+            --metadata-file /tmp/metadata.json
+          mkdir -p /tmp/out
+          # Select the target entry explicitly: buildx also writes non-target keys
+          # (e.g. buildx.build.warnings) at the top level, and a bare `.[]` emits a
+          # null for each of them alongside the digest.
+          jq -r 'to_entries[] | .value | objects
+                 | select(has("containerimage.digest"))
+                 | ."containerimage.digest"' /tmp/metadata.json > /tmp/out/digest
+          [ "$(wc -l < /tmp/out/digest)" = 1 ] || { echo "expected exactly one digest" >&2; exit 1; }
+          docker run --rm "${repo}@$(cat /tmp/out/digest)" \
+            cat /etc/image-manifest.sha256 > /tmp/out/manifest-hash
+      - if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+        uses: actions/upload-artifact@v4
         with:
-          name: digest-${{ matrix.image }}-${{ matrix.java-version }}-${{ matrix.platform }}
-          path: /tmp/digests/*
-          if-no-files-found: error
+          name: build-${{ matrix.target }}-${{ matrix.platform.arch }}
+          path: /tmp/out/*
           retention-days: 1
 
-      - name: Stage manifest hash for upload (amd64 only)
-        if: matrix.platform == 'amd64' && github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        run: |
-          mkdir -p /tmp/hash
-          echo "${{ steps.vh.outputs.short }}" > /tmp/hash/short
-          echo "${{ steps.vh.outputs.hash }}"  > /tmp/hash/full
-
-      - name: Upload manifest hash artifact (amd64 only)
-        if: matrix.platform == 'amd64' && github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        uses: actions/upload-artifact@v7
-        with:
-          name: hash-${{ matrix.image }}-${{ matrix.java-version }}
-          path: /tmp/hash/
-          if-no-files-found: error
-          retention-days: 1
-
-  merge:
-    name: "[${{ matrix.image }}: JDK ${{ matrix.java-version }}] Merge multi-arch manifest"
-    needs: build
-    if: github.event_name != 'pull_request' && github.repository == 'shuwariafrica/container-images'
-    runs-on: ubuntu-latest
+  tag:
+    # !cancelled() rather than success(): matrix legs cannot depend on each other, so a
+    # plain `needs: build` lets one family's failure withhold every other family's tags.
+    # A leg whose build failed has no artefact and fails at download instead.
+    if: >-
+      !cancelled()
+      && github.event_name != 'pull_request'
+      && github.repository == 'shuwariafrica/container-images'
+    needs: [targets, build]
     strategy:
       fail-fast: false
       matrix:
-        image: [ el10, alpine, alpine-edge, ubuntu26, fedora, rawhide, opensuse ]
-        java-version: [ "17", "21", "25" ]
-    env:
-      IMAGE: shuwariafrica/${{ matrix.image }}-jdk
-
+        target: ${{ fromJson(needs.targets.outputs.matrix) }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Download digest artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: /tmp/digests
-          pattern: digest-${{ matrix.image }}-${{ matrix.java-version }}-*
-          merge-multiple: true
-
-      - name: Download manifest hash artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: hash-${{ matrix.image }}-${{ matrix.java-version }}
-          path: /tmp/hash
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_KEY }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.target }}-amd64
+          path: /tmp/amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.target }}-arm64
+          path: /tmp/arm64
 
-      - name: Read manifest hash
-        id: vh
-        run: echo "short=$(cat /tmp/hash/short)" >> "$GITHUB_OUTPUT"
-
-      - name: Check whether multi-arch manifest is already published
-        id: gate
+      # Hashing both architectures' manifests is what makes an arm64-only upstream
+      # change re-publish.
+      - name: Assemble multi-arch manifest and tags
         run: |
-          IMMUTABLE="${IMAGE}:${{ matrix.java-version }}-${{ steps.vh.outputs.short }}"
-          if RAW=$(docker buildx imagetools inspect --raw "$IMMUTABLE" 2>/dev/null); then
-            PLATFORM_COUNT=$(echo "$RAW" | jq -r '.manifests[]?.platform.architecture // empty' | grep -E '^(amd64|arm64)$' | sort -u | wc -l)
-            if [ "$PLATFORM_COUNT" -ge 2 ]; then
-              echo "Skipping merge: $IMMUTABLE already exists as a multi-arch manifest."
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "Re-publishing: $IMMUTABLE exists but is not multi-arch (found $PLATFORM_COUNT linux/* manifest(s))."
-              echo "skip=false" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "Will merge: $IMMUTABLE is new."
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          set -eu
+          image="$(echo '${{ matrix.target }}' | sed 's/-jdk[0-9]*$//')-jdk"
+          jdk="$(echo '${{ matrix.target }}' | grep -o '[0-9]*$')"
+          repo="docker.io/shuwariafrica/${image}"
+          combined=$(cat /tmp/amd64/manifest-hash /tmp/arm64/manifest-hash | sha256sum | cut -c1-12)
+          immutable="${repo}:${jdk}-${combined}"
+          platforms=$(docker buildx imagetools inspect --raw "${immutable}" 2>/dev/null \
+            | jq -r '[.manifests[].platform.architecture] | join(",")' || true)
+          if echo "${platforms}" | grep -q amd64 && echo "${platforms}" | grep -q arm64; then
+            echo "::notice::${immutable} already published for both platforms"
+            exit 0
           fi
-
-      - name: Create multi-arch manifest list
-        if: steps.gate.outputs.skip == 'false'
-        working-directory: /tmp/digests
-        run: |
-          MAJOR_TAG="${IMAGE}:${{ matrix.java-version }}"
-          IMMUTABLE_TAG="${IMAGE}:${{ matrix.java-version }}-${{ steps.vh.outputs.short }}"
-          SOURCES=$(printf "${IMAGE}@sha256:%s " *)
           docker buildx imagetools create \
-            --tag "$MAJOR_TAG" \
-            --tag "$IMMUTABLE_TAG" \
-            $SOURCES
-          docker buildx imagetools inspect "$IMMUTABLE_TAG"
+            --tag "${immutable}" \
+            --tag "${repo}:${jdk}" \
+            "${repo}@$(cat /tmp/amd64/digest)" \
+            "${repo}@$(cat /tmp/arm64/digest)"

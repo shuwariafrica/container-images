@@ -1,28 +1,25 @@
 #!/bin/sh
-# Install the sbt launcher from the official release tarball.
-#
-# Tarball rather than sbt's rpm/deb repositories: those need per-distribution key handling
-# and do not behave alike. `rpm --import` of the sbt key fails outright on EL10, whose
-# Sequoia backend rejects the key's binding signature, and the published sbt-rpm.repo sets
-# gpgcheck and repo_gpgcheck to 0 so it cannot simply be imported either. One tarball works
-# on every base.
-#
-# sbt is a launcher: it reads project/build.properties and fetches the version each project
-# declares, so SBT_VERSION only sets what runs with no project context.
-#
-# POSIX sh, no bashisms: this also runs under busybox on Alpine.
 set -eu
 
-VERSION="${1:?usage: install-sbt.sh <version>}"
+VERSION="${1:?usage: install-sbt.sh <version> <sha256> [base-url]}"
+SHA256="${2:?usage: install-sbt.sh <version> <sha256> [base-url] - refusing to install unverified}"
+# Mirror override. The checksum below is unconditional, so a substituted origin cannot
+# weaken verification.
+BASE_URL="${3:-}"
+: "${BASE_URL:=https://github.com/sbt/sbt/releases/download}"
 
-curl -fL --retry 5 \
-    "https://github.com/sbt/sbt/releases/download/v${VERSION}/sbt-${VERSION}.tgz" \
-  | tar xzf - -C /opt
+TARBALL="/tmp/sbt-${VERSION}.tgz"
+# --retry-all-errors: GitHub release CDN intermittently resets HTTP/2 streams
+# (curl exit 92), which plain --retry does not treat as retryable.
+curl -fL --retry 5 --retry-all-errors -o "${TARBALL}" \
+    "${BASE_URL}/v${VERSION}/sbt-${VERSION}.tgz"
+echo "${SHA256}  ${TARBALL}" | sha256sum -c - >/dev/null
+tar xzf "${TARBALL}" -C /opt
+rm -f "${TARBALL}"
 
 ln -sf /opt/sbt/bin/sbt  /usr/local/bin/sbt
 ln -sf /opt/sbt/bin/sbtn /usr/local/bin/sbtn
 echo "${VERSION}" > /etc/sbt-version
 
-# Fail here rather than ship an image with a silently mislaid launcher. Not `sbt
-# --script-version`: this runs in the base stage, which has no JDK yet.
+# Not `sbt --script-version`: this stage has no JDK yet.
 [ -x /opt/sbt/bin/sbt ] || { echo "sbt missing after extraction" >&2; exit 1; }

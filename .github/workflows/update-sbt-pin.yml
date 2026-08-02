@@ -1,0 +1,91 @@
+name: update-sbt-pin
+
+# The sbt pin is a version AND a tarball checksum; deriving the second needs
+# postUpgradeTasks, which only self-hosted Renovate runs. This job moves both in one
+# commit.
+#
+# renovate.json must keep sbt/sbt disabled, or the two race on the same variable.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the latest sbt release
+        id: sbt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest=$(gh release view --repo sbt/sbt --json tagName -q .tagName | sed 's/^v//')
+          current=$(docker buildx bake --print 2>/dev/null | jq -r 'first(.target[].args.SBT_VERSION)')
+          echo "latest=${latest}"   >> "$GITHUB_OUTPUT"
+          echo "current=${current}" >> "$GITHUB_OUTPUT"
+          if [ "${latest}" = "${current}" ]; then
+            echo "sbt ${current} is current"
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sha=$(curl -fsSL --retry 5 --retry-all-errors \
+            "https://github.com/sbt/sbt/releases/download/v${latest}/sbt-${latest}.tgz.sha256" \
+            | awk '{print $1}')
+          [ -n "${sha}" ] || { echo "::error::sbt ${latest} publishes no checksum"; exit 1; }
+          echo "sha=${sha}"     >> "$GITHUB_OUTPUT"
+          echo "stale=true"     >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite both variables
+        if: steps.sbt.outputs.stale == 'true'
+        env:
+          VERSION: ${{ steps.sbt.outputs.latest }}
+          SHA: ${{ steps.sbt.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          version, sha = os.environ['VERSION'], os.environ['SHA']
+          src = open('docker-bake.hcl').read()
+          for name, value, pattern in (
+              ('SBT_VERSION', version, r'[0-9][0-9A-Za-z.\-]*'),
+              ('SBT_SHA256',  sha,     r'[a-f0-9]{64}'),
+          ):
+              src, n = re.subn(
+                  rf'(variable "{name}" \{{(?:[^}}]*?)default = ")({pattern})(")',
+                  lambda m: m.group(1) + value + m.group(3), src, count=1)
+              if n != 1:
+                  sys.exit(f'{name} default not found in docker-bake.hcl')
+          open('docker-bake.hcl', 'w').write(src)
+          PY
+          git diff --stat
+
+      - name: Sign as the team account
+        if: steps.sbt.outputs.stale == 'true'
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.OSS_PUBLISH_USER_SIGNING_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          trust_level: 5
+
+      - name: Open the pull request
+        if: steps.sbt.outputs.stale == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.OSS_TEAM_TOKEN }}
+          committer: Shuwari Africa Team <${{ steps.gpg.outputs.email }}>
+          author: Shuwari Africa Team <${{ steps.gpg.outputs.email }}>
+          branch: pin/sbt-${{ steps.sbt.outputs.latest }}
+          delete-branch: true
+          title: "[task][dependencies] sbt ${{ steps.sbt.outputs.latest }}"
+          commit-message: |
+            [task][dependencies] sbt ${{ steps.sbt.outputs.latest }}
+          body: |
+            sbt `${{ steps.sbt.outputs.current }}` -> `${{ steps.sbt.outputs.latest }}`.

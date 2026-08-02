@@ -1,53 +1,59 @@
-Container Images
--------------
+## Container Images
 
-OCI base container images used for Scala 3 / Scala Native development at Shuwari Africa.
+OCI base container images used for Scala 3 / Scala Native development and compilation.
 
 ## Images
 
-| Image                                 | Base                  | libc  | Static linking | Intended use                                              |
-| ------------------------------------- | --------------------- | ----- | -------------- | --------------------------------------------------------- |
-| `shuwariafrica/el10-jdk:<jdk>`        | Oracle Linux 10       | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the RHEL family.            |
-| `shuwariafrica/alpine-jdk:<jdk>`      | Alpine Linux          | musl  | Yes            | Scala 3 / Scala Native fully-static builds.               |
-| `shuwariafrica/alpine-edge-jdk:<jdk>` | Alpine edge           | musl  | Yes            | As above, against Alpine's rolling branch.                |
-| `shuwariafrica/ubuntu26-jdk:<jdk>`    | Ubuntu 26.04          | glibc | No (dynamic)   | Scala 3 / Scala Native dev on the Debian family.          |
-| `shuwariafrica/fedora-jdk:<jdk>`      | Fedora (latest)       | glibc | No (dynamic)   | Newer toolchain than the enterprise bases.                |
-| `shuwariafrica/rawhide-jdk:<jdk>`     | Fedora rawhide        | glibc | No (dynamic)   | Bleeding edge; expect occasional upstream churn.          |
-| `shuwariafrica/opensuse-jdk:<jdk>`    | openSUSE Tumbleweed   | glibc | No (dynamic)   | Rolling release: current LLVM, GTK4/Qt6 and Mesa.         |
+| Image                                 | Base                | libc  | Static linking |
+| ------------------------------------- | ------------------- | ----- | -------------- |
+| `shuwariafrica/el10-jdk:<jdk>`        | Oracle Linux 10     | glibc | No (dynamic)   |
+| `shuwariafrica/alpine-jdk:<jdk>`      | Alpine Linux        | musl  | Yes            |
+| `shuwariafrica/alpine-edge-jdk:<jdk>` | Alpine edge         | musl  | Yes            |
+| `shuwariafrica/ubuntu26-jdk:<jdk>`    | Ubuntu 26.04        | glibc | No (dynamic)   |
+| `shuwariafrica/fedora-jdk:<jdk>`      | Fedora (latest)     | glibc | No (dynamic)   |
+| `shuwariafrica/rawhide-jdk:<jdk>`     | Fedora rawhide      | glibc | No (dynamic)   |
+| `shuwariafrica/opensuse-jdk:<jdk>`    | openSUSE Tumbleweed | glibc | No (dynamic)   |
 
-`JAVA_HOME` is `/opt/jdk` on every image, whatever provides the JDK.
+`JAVA_HOME` is `/opt/jdk` on every image.
 
-| Image | JDK source |
-| ----- | ---------- |
-| `alpine-jdk`, `alpine-edge-jdk`, `opensuse-jdk` | the distribution's own OpenJDK |
-| `el10-jdk`, `fedora-jdk`, `rawhide-jdk`, `ubuntu26-jdk` | Eclipse Temurin, from the Adoptium repository |
+## Supported JDK streams
 
-Adoptium publishes nothing usable for openSUSE — Leap 15.1–15.5 only, all end-of-life.
-What each distribution ships natively:
+Supported streams are `21` and `25` - the release and current LTS, matching the Scala CI's `JDK_RELEASE` and `JDK_CURRENT`. Every image ships its distribution's own OpenJDK; a stream a distribution does not ship has no tag.
 
-| Base | 17 | 21 | 25 |
-| ---- | -- | -- | -- |
-| Ubuntu 26.04 | yes | yes | yes |
-| Alpine (stable and edge) | yes | yes | yes |
-| openSUSE Tumbleweed | yes | yes | yes |
-| Oracle Linux 10 | **no** | yes | yes |
-| Fedora (latest and rawhide) | **no** | **no** | yes |
+| Base                        | 21     | 25  |
+| --------------------------- | ------ | --- |
+| Alpine (stable and edge)    | yes    | yes |
+| Ubuntu 26.04                | yes    | yes |
+| openSUSE Tumbleweed         | yes    | yes |
+| Oracle Linux 10             | yes    | yes |
+| Fedora (latest and rawhide) | **no** | yes |
 
-`sbt` comes from the distribution repository on every image that has one; Alpine has none,
-so it keeps a pinned tarball in `ARG SBT_VERSION`. Dependabot's `docker` ecosystem rewrites
-`FROM` lines only and will not bump that ARG — it needs a Renovate regex manager.
+#### Notes:
 
-The `<jdk>` tag is the JDK major version. Supported: `17`, `21`, `25`. All published tags are multi-arch (`linux/amd64` and `linux/arm64`).
+- The `jdks_*` lists in `docker-bake.hcl` are the authority for this table; CI builds what `docker buildx bake --print` renders, so an unsupported cell is never published. Establish a cell by installing the JDK package in the base image, and treat a cell as unsupported only when the package manager reports the name as unknown - openSUSE's mirrors fail downloads often enough to fake an absence.
+- `sbt` is installed on every image from the pinned, checksum-verified release tarball (`SBT_VERSION`/`SBT_SHA256` in `docker-bake.hcl`).
+- `sudo` is installed but grants nothing: no image defines any sudoers policy. Consumers that run as a non-root user supply their own.
+- `docker-bake.hcl` is the single source for the build matrix, every version pin and every digest-pinned base image. A version stated anywhere else is a bug.
+- The `<jdk>` tag is the JDK major version. All published tags are multi-arch (`linux/amd64` and `linux/arm64`) and carry BuildKit provenance and SBOM attestations.
 
-Each successful publish also produces an immutable tag `<jdk>-<short-hash>`, where `<short-hash>` is derived from the full installed package manifest. The CI build only publishes when this hash differs from what is already on the registry, so the monthly cron is a no-op when nothing upstream has changed.
+## Keeping pins current
+
+| Pin                                     | Maintained by                                               |
+| --------------------------------------- | ----------------------------------------------------------- |
+| `BASE_*` digests in `docker-bake.hcl`   | Renovate (`renovate.json` regex manager, docker datasource) |
+| Action versions in `.github/workflows/` | Renovate (`helpers:pinGitHubActionDigests`)                 |
+| `SBT_VERSION` **and** `SBT_SHA256`      | `.github/workflows/update-sbt-pin.yml`                      |
+| Distribution packages inside the images | not pinned; the scheduled build re-resolves them            |
+
+sbt is excluded from Renovate in `renovate.json`. The pin is a version and a tarball checksum, and deriving the second needs `postUpgradeTasks`, which the hosted Renovate app does not run - so a version-only bump would land a pin that cannot build. `update-sbt-pin.yml` moves both in one commit; `verify-pins.yml` independently re-derives the checksum on every pull request and fails if the two disagree.
+
+Because the base digests are pinned, a scheduled rebuild is the only thing that picks up distribution package updates within a pinned base. The immutable-tag hash gates publishing, so a rebuild that resolves identical packages publishes nothing.
+
+Each publish also produces an immutable tag `<jdk>-<short-hash>`, hashed over **both** architectures' installed-package manifests. Downstream consumers must reference immutable tags or digests, never the mutable `<jdk>` tag. Per-arch layers are pushed by digest unconditionally; the tagging step is what skips when the combined hash is already published for both platforms.
 
 ## Scope
 
 These are intentionally minimal Scala Native build images - JDK, sbt, and the C/LLVM toolchain plus the libraries Scala Native links against.
-
-## Licensing notes
-
-The `el10-jdk` image is built on glibc and deliberately omits any `*-static` libraries to avoid the LGPL static-linking obligations that apply to glibc. Use `alpine-jdk` when static linking is required - musl, zlib, libunwind, and the Boehm GC are permissively licensed under terms compatible with static linking.
 
 ## Notes on Scala Native garbage collectors on Alpine
 
@@ -61,10 +67,10 @@ Workarounds for arm64 jobs that need the musl/static-link toolchain:
 
 - Use `shuwariafrica/el10-jdk:<jdk>` as the `container:` on arm64 - it is glibc-based, so the runner gate does not apply.
 - Or drop the `container:` syntax and run on `ubuntu-24.04-arm` directly, invoking the Alpine image inline:
-    ```yaml
-    - run: |
-        docker run --rm -v "$PWD:/work" -w /work shuwariafrica/alpine-jdk:21 \
-          sh -c 'sbt test'
-    ```
+  ```yaml
+  - run: |
+      docker run --rm -v "$PWD:/work" -w /work shuwariafrica/alpine-jdk:21 \
+        sh -c 'sbt test'
+  ```
 
 On `linux/amd64` the issue does not apply and `alpine-jdk` works as a `container:` normally.

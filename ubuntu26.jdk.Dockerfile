@@ -1,19 +1,15 @@
-FROM ubuntu:26.04 AS base
+# No ARG defaults: a bare `docker build` must fail rather than silently build an
+# unpinned base. docker-bake.hcl supplies every value.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS base
 
-ARG SBT_VERSION=2.0.4
+ARG SBT_VERSION
+ARG SBT_SHA256
+ARG SBT_BASE_URL
 
+# libtool-bin as well as libtool: Debian's libtool ships libtoolize and the m4 macros
+# but not /usr/bin/libtool, which every other family gets from its libtool package.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      ca-certificates \
-      curl \
-      gnupg \
- && mkdir -p /etc/apt/keyrings \
- && curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
-      | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg \
- && printf "deb [arch=%s signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb %s main\n" \
-      "$(dpkg --print-architecture)" "$(. /etc/os-release && echo "${VERSION_CODENAME}")" \
-      > /etc/apt/sources.list.d/adoptium.list \
- && apt-get update \
  && apt-get install -y --no-install-recommends \
       autoconf \
       automake \
@@ -26,15 +22,20 @@ RUN apt-get update \
       clangd \
       cmake \
       coreutils \
+      curl \
       ed \
       file \
       g++ \
       gcc \
       gdb \
       git \
+      gnupg \
       graphviz \
       libgc-dev \
+      libre2-dev \
       libssl-dev \
+      libtool \
+      libtool-bin \
       libunwind-dev \
       libuv1-dev \
       lld \
@@ -42,7 +43,6 @@ RUN apt-get update \
       make \
       openssh-client \
       pkg-config \
-      libre2-dev \
       rsync \
       sudo \
       tar \
@@ -52,22 +52,22 @@ RUN apt-get update \
       zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# Invoked via `sh`, not executed directly: the file mode does not survive every checkout
-# (a Windows-authored commit lands as 100644) and a non-executable script fails with the
-# bare exit code 126.
+# Invoked via `sh`: the executable bit does not survive a Windows-authored checkout,
+# and a non-executable script fails with the bare exit code 126.
 COPY scripts/install-sbt.sh /tmp/install-sbt.sh
-RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
-
-RUN git config --system --add safe.directory '*'
+RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" "${SBT_SHA256}" "${SBT_BASE_URL}" && rm -f /tmp/install-sbt.sh
 
 FROM base AS final
 
-ARG JDK_VERSION=21
+ARG JDK_VERSION
 
+# The JVM directory carries the dpkg architecture suffix, so it differs between the
+# amd64 and arm64 builds of the same tag.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      "temurin-${JDK_VERSION}-jdk" \
- && ln -s "/usr/lib/jvm/temurin-${JDK_VERSION}-jdk-$(dpkg --print-architecture)" /opt/jdk \
+      "openjdk-${JDK_VERSION}-jdk" \
+ && ln -s "/usr/lib/jvm/java-${JDK_VERSION}-openjdk-$(dpkg --print-architecture)" /opt/jdk \
+ && [ -x /opt/jdk/bin/javac ] \
  && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/opt/jdk
@@ -77,5 +77,5 @@ RUN { dpkg -l | sort; echo "sbt-$(cat /etc/sbt-version)"; "${JAVA_HOME}/bin/java
  && sha256sum /etc/image-manifest | awk '{print $1}' > /etc/image-manifest.sha256
 
 LABEL authors="Shuwari Africa Development Team"
-LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Ubuntu 26.04 with Eclipse Temurin JDK"
+LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Ubuntu 26.04 with the distribution's OpenJDK"
 LABEL org.opencontainers.image.source="https://github.com/shuwariafrica/container-images"

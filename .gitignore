@@ -1,3 +1,7 @@
-.idea/
-.vscode/
-*.iml
+.*
+!.github/
+!.gittattributes
+!.gitignore
+
+*.md
+!README.md
