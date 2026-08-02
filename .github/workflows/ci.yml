@@ -1,0 +1,215 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Base digests are pinned, so this rebuild is the only thing that picks up
+  # distribution package updates. The immutable-tag hash gates publishing, so a
+  # run that resolves identical packages pushes no new tag.
+  schedule:
+    - cron: "0 1 * * 1"
+  workflow_dispatch:
+
+# Two runs on main would race `imagetools create` on the same mutable <jdk> tag, and the
+# loser's digests would silently win.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SOURCE_REPOSITORY: shuwariafrica/container-images
+
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      # The bake file is the only definition of the build matrix.
+      - id: list
+        run: |
+          matrix=$(docker buildx bake --print 2>/dev/null \
+            | jq -c '[.target | keys[] | {
+                       name: .,
+                       family: sub("-jdk[0-9]+$"; ""),
+                       jdk: capture("-jdk(?<v>[0-9]+)$").v
+                     }]')
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  # update-sbt-pin.yml proposes new pin values; this only ever checks them.
+  # Independent of the build matrix, so it reports even when every build fails.
+  pins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # One dependency in two variables. Renovate cannot express that coupling, so
+      # nothing else stops the pair drifting apart.
+      - name: SBT_SHA256 matches the pinned SBT_VERSION
+        run: |
+          set -euo pipefail
+          printed=$(docker buildx bake --print 2>/dev/null)
+          version=$(echo "${printed}" | jq -r 'first(.target[].args.SBT_VERSION)')
+          pinned=$(echo "${printed}" | jq -r 'first(.target[].args.SBT_SHA256)')
+          upstream=$(curl -fsSL --retry 5 --retry-all-errors \
+            "https://github.com/sbt/sbt/releases/download/v${version}/sbt-${version}.tgz.sha256" \
+            | awk '{print $1}')
+          [ -n "${upstream}" ] || { echo "::error::no published checksum for sbt ${version}"; exit 1; }
+          if [ "${pinned}" != "${upstream}" ]; then
+            echo "::error file=docker-bake.hcl::SBT_SHA256 for sbt ${version} must be ${upstream}, found ${pinned}"
+            exit 1
+          fi
+          echo "sbt ${version}: ${pinned}"
+
+      # An unresolvable digest fails every build job; this fails one, in seconds.
+      - name: Every BASE_* digest resolves
+        run: |
+          set -euo pipefail
+          docker buildx bake --print 2>/dev/null \
+            | jq -r '[.target[].args.BASE_IMAGE] | unique[]' \
+            | while read -r ref; do
+                docker buildx imagetools inspect --raw "${ref}" >/dev/null \
+                  || { echo "::error::unresolvable base image ${ref}"; exit 1; }
+                echo "ok ${ref}"
+              done
+
+  build:
+    needs: targets
+    name: ${{ matrix.target.family }} / build / ${{ matrix.platform.label }} / ${{ matrix.target.jdk }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.targets.outputs.matrix) }}
+        # Two spellings on purpose: arch feeds --platform, label is display only.
+        platform:
+          - arch: amd64
+            label: x86_64
+            runner: ubuntu-latest
+          - arch: arm64
+            label: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.platform.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_KEY }}
+
+      # The image loads under the target's own tag, not the exporter's name=, so the
+      # tag must be overridden or `docker run local/...` cannot find it.
+      # ATTEST=false because the docker exporter cannot carry attestations, and
+      # `--set '*.attest='` does not clear them.
+      - name: Build (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          ATTEST: "false"
+        run: |
+          docker buildx bake "${{ matrix.target.name }}" \
+            --set "*.platform=linux/${{ matrix.platform.arch }}" \
+            --set "*.tags=local/${{ matrix.target.name }}" \
+            --set "*.output=type=docker" \
+            --set "*.cache-from=type=gha,scope=${{ matrix.target.name }}-${{ matrix.platform.arch }}" \
+            --set "*.cache-to=type=gha,scope=${{ matrix.target.name }}-${{ matrix.platform.arch }},mode=max"
+          docker run --rm "local/${{ matrix.target.name }}" cat /etc/image-manifest.sha256
+
+      - name: Build and push by digest
+        if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+        id: push
+        run: |
+          repo="docker.io/${SOURCE_REPOSITORY%%/*}/${{ matrix.target.family }}-jdk"
+          docker buildx bake "${{ matrix.target.name }}" \
+            --set "*.platform=linux/${{ matrix.platform.arch }}" \
+            --set "*.tags=" \
+            --set "*.output=type=image,name=${repo},push-by-digest=true,name-canonical=true,push=true" \
+            --set "*.cache-from=type=gha,scope=${{ matrix.target.name }}-${{ matrix.platform.arch }}" \
+            --set "*.cache-to=type=gha,scope=${{ matrix.target.name }}-${{ matrix.platform.arch }},mode=max" \
+            --metadata-file /tmp/metadata.json
+          mkdir -p /tmp/out
+          # Select the target entry explicitly: buildx also writes non-target keys
+          # (e.g. buildx.build.warnings) at the top level, and a bare `.[]` emits a
+          # null for each of them alongside the digest.
+          jq -r 'to_entries[] | .value | objects
+                 | select(has("containerimage.digest"))
+                 | ."containerimage.digest"' /tmp/metadata.json > /tmp/out/digest
+          [ "$(wc -l < /tmp/out/digest)" = 1 ] || { echo "expected exactly one digest" >&2; exit 1; }
+          docker run --rm "${repo}@$(cat /tmp/out/digest)" \
+            cat /etc/image-manifest.sha256 > /tmp/out/manifest-hash
+      - if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.target.name }}-${{ matrix.platform.arch }}
+          path: /tmp/out/*
+          retention-days: 1
+
+  # The branch ruleset requires this, not the matrix legs: their names carry the
+  # bake-derived target list, and a required check that stops reporting blocks merges
+  # permanently.
+  build-complete:
+    if: always()
+    needs: [targets, build]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "targets=${{ needs.targets.result }} build=${{ needs.build.result }}"
+          [ "${{ needs.targets.result }}" = success ] || exit 1
+          [ "${{ needs.build.result }}" = success ] || exit 1
+
+  tag:
+    # !cancelled() rather than success(): matrix legs cannot depend on each other, so a
+    # plain `needs: build` lets one family's failure withhold every other family's tags.
+    # A leg whose build failed has no artefact and fails at download instead.
+    if: >-
+      !cancelled()
+      && github.event_name != 'pull_request'
+      && github.repository == 'shuwariafrica/container-images'
+    needs: [targets, build]
+    name: ${{ matrix.target.family }} / tag / ${{ matrix.target.jdk }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.targets.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_KEY }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.target.name }}-amd64
+          path: /tmp/amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.target.name }}-arm64
+          path: /tmp/arm64
+
+      # Hashing both architectures' manifests is what makes an arm64-only upstream
+      # change re-publish.
+      - name: Assemble multi-arch manifest and tags
+        run: |
+          set -eu
+          repo="docker.io/shuwariafrica/${{ matrix.target.family }}-jdk"
+          jdk="${{ matrix.target.jdk }}"
+          combined=$(cat /tmp/amd64/manifest-hash /tmp/arm64/manifest-hash | sha256sum | cut -c1-12)
+          immutable="${repo}:${jdk}-${combined}"
+          platforms=$(docker buildx imagetools inspect --raw "${immutable}" 2>/dev/null \
+            | jq -r '[.manifests[].platform.architecture] | join(",")' || true)
+          if echo "${platforms}" | grep -q amd64 && echo "${platforms}" | grep -q arm64; then
+            echo "::notice::${immutable} already published for both platforms"
+            exit 0
+          fi
+          docker buildx imagetools create \
+            --tag "${immutable}" \
+            --tag "${repo}:${jdk}" \
+            "${repo}@$(cat /tmp/amd64/digest)" \
+            "${repo}@$(cat /tmp/arm64/digest)"

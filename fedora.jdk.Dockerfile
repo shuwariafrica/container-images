@@ -1,17 +1,12 @@
-ARG FEDORA_VERSION=latest
+# No ARG defaults: a bare `docker build` must fail rather than silently build an
+# unpinned base. docker-bake.hcl supplies every value. This file builds both the fedora and rawhide families; only
+# BASE_IMAGE differs.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS base
 
-FROM fedora:${FEDORA_VERSION} AS base
-
-ARG SBT_VERSION=2.0.4
-
-RUN cat > /etc/yum.repos.d/adoptium.repo <<'EOF'
-[Adoptium]
-name=Adoptium
-baseurl=https://packages.adoptium.net/artifactory/rpm/fedora/$releasever/$basearch
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.adoptium.net/artifactory/api/gpg/key/public
-EOF
+ARG SBT_VERSION
+ARG SBT_SHA256
+ARG SBT_BASE_URL
 
 RUN dnf -y upgrade \
  && dnf -y install \
@@ -34,6 +29,7 @@ RUN dnf -y upgrade \
       gnupg2 \
       graphviz \
       libstdc++-devel \
+      libtool \
       libunwind-devel \
       libuv-devel \
       lld \
@@ -53,21 +49,20 @@ RUN dnf -y upgrade \
  && dnf clean all \
  && rm -rf /var/cache/dnf/* /tmp/*
 
-# Invoked via `sh`, not executed directly: the file mode does not survive every checkout
-# (a Windows-authored commit lands as 100644) and a non-executable script fails with the
-# bare exit code 126.
+# Invoked via `sh`: the executable bit does not survive a Windows-authored checkout,
+# and a non-executable script fails with the bare exit code 126.
 COPY scripts/install-sbt.sh /tmp/install-sbt.sh
-RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" && rm -f /tmp/install-sbt.sh
-
-RUN git config --system --add safe.directory '*'
+RUN sh /tmp/install-sbt.sh "${SBT_VERSION}" "${SBT_SHA256}" "${SBT_BASE_URL}" && rm -f /tmp/install-sbt.sh
 
 FROM base AS final
 
-ARG FEDORA_VERSION=latest
-ARG JDK_VERSION=21
+ARG JDK_VERSION
 
-RUN dnf -y install "temurin-${JDK_VERSION}-jdk" \
- && ln -s "/usr/lib/jvm/java-${JDK_VERSION}-temurin-jdk" /opt/jdk \
+# Link the unversioned symlink, not the java-<major>-openjdk-<full-version> directory
+# it points at: only the former survives a patch release.
+RUN dnf -y install "java-${JDK_VERSION}-openjdk-devel" \
+ && ln -s "/usr/lib/jvm/java-${JDK_VERSION}-openjdk" /opt/jdk \
+ && [ -x /opt/jdk/bin/javac ] \
  && dnf clean all \
  && rm -rf /var/cache/dnf/* /tmp/*
 
@@ -78,5 +73,5 @@ RUN { rpm -qa | sort; echo "sbt-$(cat /etc/sbt-version)"; "${JAVA_HOME}/bin/java
  && sha256sum /etc/image-manifest | awk '{print $1}' > /etc/image-manifest.sha256
 
 LABEL authors="Shuwari Africa Development Team"
-LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Fedora Linux (${FEDORA_VERSION}) with Eclipse Temurin JDK"
+LABEL org.opencontainers.image.description="Scala 3 / Scala Native (glibc) build environment based on Fedora Linux with the distribution's OpenJDK"
 LABEL org.opencontainers.image.source="https://github.com/shuwariafrica/container-images"
