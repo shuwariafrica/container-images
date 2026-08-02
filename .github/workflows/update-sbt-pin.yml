@@ -23,7 +23,7 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Resolve the latest sbt release
         id: sbt
@@ -73,7 +73,7 @@ jobs:
       - name: Sign as the team account
         if: steps.sbt.outputs.stale == 'true'
         id: gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
         with:
           gpg_private_key: ${{ secrets.OSS_PUBLISH_USER_SIGNING_KEY }}
           git_user_signingkey: true
@@ -82,7 +82,7 @@ jobs:
 
       - name: Open the pull request
         if: steps.sbt.outputs.stale == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ secrets.OSS_TEAM_TOKEN }}
           committer: Shuwari Africa Team <${{ steps.gpg.outputs.email }}>
