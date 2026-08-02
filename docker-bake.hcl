@@ -9,7 +9,7 @@ variable "SBT_VERSION" {
   default = "2.0.4"
 }
 
-# Must change with SBT_VERSION; verify-pins.yml fails a PR where the two disagree.
+# Must change with SBT_VERSION; the ci pins job fails a PR where the two disagree.
 variable "SBT_SHA256" {
   default = "13253ee7a8b19f60f8c6dc100249619df19ed8869f8be783ab8d206aedfdc366"
 }
@@ -25,7 +25,7 @@ variable "ATTEST" {
   default = "true"
 }
 
-# The digest builds; the tag is informational. Tracked by renovate.json.
+# The digest builds; the tag is informational. Tracked by .github/renovate.json.
 variable "BASE_EL10" {
   default = "oraclelinux:10@sha256:07875b8c89e5afe1d15ea77553eb5910234b4afca44d31eb9391e5e1d93d38cc"
 }

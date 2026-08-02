@@ -4,7 +4,7 @@ name: update-sbt-pin
 # postUpgradeTasks, which only self-hosted Renovate runs. This job moves both in one
 # commit.
 #
-# renovate.json must keep sbt/sbt disabled, or the two race on the same variable.
+# .github/renovate.json must keep sbt/sbt disabled, or the two race on the same variable.
 
 # A second run before the first PR lands would open a duplicate.
 concurrency:

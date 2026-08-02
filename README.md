@@ -40,12 +40,12 @@ Supported streams are `21` and `25` - the release and current LTS, matching the 
 
 | Pin                                     | Maintained by                                               |
 | --------------------------------------- | ----------------------------------------------------------- |
-| `BASE_*` digests in `docker-bake.hcl`   | Renovate (`renovate.json` regex manager, docker datasource) |
+| `BASE_*` digests in `docker-bake.hcl`   | Renovate (`.github/renovate.json` regex manager, docker datasource) |
 | Action versions in `.github/workflows/` | Renovate (`helpers:pinGitHubActionDigests`)                 |
 | `SBT_VERSION` **and** `SBT_SHA256`      | `.github/workflows/update-sbt-pin.yml`                      |
 | Distribution packages inside the images | not pinned; the scheduled build re-resolves them            |
 
-sbt is excluded from Renovate in `renovate.json`. The pin is a version and a tarball checksum, and deriving the second needs `postUpgradeTasks`, which the hosted Renovate app does not run - so a version-only bump would land a pin that cannot build. `update-sbt-pin.yml` moves both in one commit; `verify-pins.yml` independently re-derives the checksum on every pull request and fails if the two disagree.
+sbt is excluded from Renovate in `.github/renovate.json`. The pin is a version and a tarball checksum, and deriving the second needs `postUpgradeTasks`, which the hosted Renovate app does not run - so a version-only bump would land a pin that cannot build. `update-sbt-pin.yml` moves both in one commit; the `pins` job in `ci.yml` independently re-derives the checksum on every pull request and fails if the two disagree.
 
 Because the base digests are pinned, a scheduled rebuild is the only thing that picks up distribution package updates within a pinned base. The immutable-tag hash gates publishing, so a rebuild that resolves identical packages publishes nothing.
 
