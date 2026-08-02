@@ -6,6 +6,11 @@ name: update-sbt-pin
 #
 # renovate.json must keep sbt/sbt disabled, or the two race on the same variable.
 
+# A second run before the first PR lands would open a duplicate.
+concurrency:
+  group: update-sbt-pin
+  cancel-in-progress: false
+
 on:
   schedule:
     - cron: "0 5 * * 1"

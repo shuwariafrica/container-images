@@ -2,6 +2,10 @@ name: verify-pins
 
 # Checks only; update-sbt-pin.yml proposes new values.
 
+concurrency:
+  group: verify-pins-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   pull_request:
     branches: [main]
