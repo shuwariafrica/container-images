@@ -144,7 +144,7 @@ jobs:
           docker run --rm "${repo}@$(cat /tmp/out/digest)" \
             cat /etc/image-manifest.sha256 > /tmp/out/manifest-hash
       - if: github.event_name != 'pull_request' && github.repository == env.SOURCE_REPOSITORY
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-${{ matrix.target.name }}-${{ matrix.platform.arch }}
           path: /tmp/out/*
