@@ -6,12 +6,12 @@ variable "REGISTRY" {
 }
 
 variable "SBT_VERSION" {
-  default = "2.0.4"
+  default = "2.0.6"
 }
 
 # Must change with SBT_VERSION; the ci pins job fails a PR where the two disagree.
 variable "SBT_SHA256" {
-  default = "13253ee7a8b19f60f8c6dc100249619df19ed8869f8be783ab8d206aedfdc366"
+  default = "60ce78a50b726b5b332a5277e363d67c028f16a3a15157f78a416c0b2949bc6d"
 }
 
 # Mirror override; SBT_SHA256 is verified whatever the origin.
