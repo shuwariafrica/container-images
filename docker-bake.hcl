@@ -36,7 +36,7 @@ variable "BASE_ALPINE_EDGE" {
   default = "alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000"
 }
 variable "BASE_UBUNTU26" {
-  default = "ubuntu:26.04@sha256:4b928535d153630c63e51b8888cffa732b46c612712e6f8bc1370cbc99992558"
+  default = "ubuntu:26.04@sha256:6df9e8dd1eac389ebfef692c9648449adeb815d01e16e29cd6f3e50fe64ba9a6"
 }
 variable "BASE_FEDORA" {
   default = "fedora:latest@sha256:6c75d5bf57cb0fa5aa4b92c6a83c86c791644496d9ac230de7711f5b8ec3b898"
