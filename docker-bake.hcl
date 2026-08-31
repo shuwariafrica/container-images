@@ -39,13 +39,13 @@ variable "BASE_UBUNTU26" {
   default = "ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b"
 }
 variable "BASE_FEDORA" {
-  default = "fedora:latest@sha256:6c75d5bf57cb0fa5aa4b92c6a83c86c791644496d9ac230de7711f5b8ec3b898"
+  default = "fedora:latest@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80"
 }
 variable "BASE_RAWHIDE" {
-  default = "fedora:rawhide@sha256:0c1f63ed8fb818fad16cf6ae091598c410a21d2e1a9adf183beb93189299bfba"
+  default = "fedora:rawhide@sha256:a9bab18d01cf2c2cf62f3e79c72623405bce14ac062995cc6651a3073c802e41"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:7b1f198d8369fd18fd65f443ce05d65c4174146f02b4d9cbf1328a4475f0729b"
+  default = "opensuse/tumbleweed:latest@sha256:87c72638112350aeb578ebfd9065f7dc5f03bbd4818eac4d420c7eead37a4037"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
