@@ -27,7 +27,7 @@ variable "ATTEST" {
 
 # The digest builds; the tag is informational. Tracked by .github/renovate.json.
 variable "BASE_EL10" {
-  default = "oraclelinux:10@sha256:2f145af52abf6ee5be815b35751c65dc1531a4c709904c4fd7f72b23fdbc5015"
+  default = "oraclelinux:10@sha256:1628d6e6586862766a2d5925f0fab6c6e1a468bc33874ae68046c7ca57406baf"
 }
 variable "BASE_ALPINE" {
   default = "alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
@@ -36,7 +36,7 @@ variable "BASE_ALPINE_EDGE" {
   default = "alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000"
 }
 variable "BASE_UBUNTU26" {
-  default = "ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b"
+  default = "ubuntu:26.04@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f32668a41d"
 }
 variable "BASE_FEDORA" {
   default = "fedora:latest@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80"
@@ -45,7 +45,7 @@ variable "BASE_RAWHIDE" {
   default = "fedora:rawhide@sha256:a9bab18d01cf2c2cf62f3e79c72623405bce14ac062995cc6651a3073c802e41"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:52696090fefe79733b145cbe73af11f340c1138f7c62f955764a28fb322eee99"
+  default = "opensuse/tumbleweed:latest@sha256:cc9e5542be071efa433cf698317aa2ef49561047ca17520611ac609ac698f10b"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
