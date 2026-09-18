@@ -30,13 +30,13 @@ variable "BASE_EL10" {
   default = "oraclelinux:10@sha256:1628d6e6586862766a2d5925f0fab6c6e1a468bc33874ae68046c7ca57406baf"
 }
 variable "BASE_ALPINE" {
-  default = "alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+  default = "alpine:3.24@sha256:e7c4abb69531cb09e2a2bbb56fad3367ab694865c49df898c1c683185cc4376c"
 }
 variable "BASE_ALPINE_EDGE" {
   default = "alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000"
 }
 variable "BASE_UBUNTU26" {
-  default = "ubuntu:26.04@sha256:cd21a4f68a617580279d4b091cb18e3af9fa8a87500665f0ae5f7f757d17d367"
+  default = "ubuntu:26.04@sha256:9559ceb7c21e528e233e8dff26a0fb2682f4094cce06176eeb075d87a22b31de"
 }
 variable "BASE_FEDORA" {
   default = "fedora:latest@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80"
@@ -45,7 +45,7 @@ variable "BASE_RAWHIDE" {
   default = "fedora:rawhide@sha256:a9bab18d01cf2c2cf62f3e79c72623405bce14ac062995cc6651a3073c802e41"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:3dcedc74f1fb6843aa4b2ee5076ffebfdbe1d329ef4ee66aa1fc01e0e275d32e"
+  default = "opensuse/tumbleweed:latest@sha256:25bddd56ab988a83bb3c54b333eb40fd1cce5dbb79f18a5b33e80d4f599e5a3e"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
