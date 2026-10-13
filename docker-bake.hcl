@@ -27,7 +27,7 @@ variable "ATTEST" {
 
 # The digest builds; the tag is informational. Tracked by .github/renovate.json.
 variable "BASE_EL10" {
-  default = "oraclelinux:10@sha256:5532d0ebb1d340b4ea6120d0fe05bf0a7b25c1a5e244995d85b4252e2c719a08"
+  default = "oraclelinux:10@sha256:2bf08d630e797a2f9891a4d7d2dabdd410fd9999f82a9d510f66a561905e6ccf"
 }
 variable "BASE_ALPINE" {
   default = "alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
@@ -45,7 +45,7 @@ variable "BASE_RAWHIDE" {
   default = "fedora:rawhide@sha256:a9bab18d01cf2c2cf62f3e79c72623405bce14ac062995cc6651a3073c802e41"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:0d5a8bf94bf96fa5826f88ee14221885f8d59adac1789a07f5d88c4f13698032"
+  default = "opensuse/tumbleweed:latest@sha256:d06f305be0449924d909d839d9a0b75c76466c615a5de34062b666aaf9ffcdbf"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
