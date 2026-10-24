@@ -9,7 +9,7 @@ on:
   # distribution package updates. The immutable-tag hash gates publishing, so a
   # run that resolves identical packages pushes no new tag.
   schedule:
-    - cron: "0 1 * * 1"
+    - cron: "0 1 1,15 * *"
   workflow_dispatch:
 
 # Two runs on main would race `imagetools create` on the same mutable <jdk> tag, and the
