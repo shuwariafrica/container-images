@@ -30,7 +30,7 @@ variable "BASE_EL10" {
   default = "oraclelinux:10@sha256:c45341d07ee8d2397656d34e3e17306bc60c92ac4243da2ecfe8cdee8f25c01e"
 }
 variable "BASE_ALPINE" {
-  default = "alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
+  default = "alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
 }
 variable "BASE_ALPINE_EDGE" {
   default = "alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000"
@@ -45,7 +45,7 @@ variable "BASE_RAWHIDE" {
   default = "fedora:rawhide@sha256:78bb31de333664aa76c4bf54306791cd294c0bd4fbcfc4346e2286261de544c4"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:b1478b4a86bc78f4b5b413d9927764ca7850193116bdcf9c86e26ac1fa48608f"
+  default = "opensuse/tumbleweed:latest@sha256:31145d02420235fc077c3ea8d2026f5c5628839cc69cadaede9215bb84af6366"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
