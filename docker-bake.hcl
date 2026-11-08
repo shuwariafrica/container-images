@@ -30,7 +30,7 @@ variable "BASE_EL10" {
   default = "oraclelinux:10@sha256:c45341d07ee8d2397656d34e3e17306bc60c92ac4243da2ecfe8cdee8f25c01e"
 }
 variable "BASE_ALPINE" {
-  default = "alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
+  default = "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf"
 }
 variable "BASE_ALPINE_EDGE" {
   default = "alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000"
