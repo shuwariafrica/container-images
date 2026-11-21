@@ -45,7 +45,7 @@ variable "BASE_RAWHIDE" {
   default = "fedora:rawhide@sha256:78bb31de333664aa76c4bf54306791cd294c0bd4fbcfc4346e2286261de544c4"
 }
 variable "BASE_OPENSUSE" {
-  default = "opensuse/tumbleweed:latest@sha256:7b71ca5748f45705e8eb46e3f5c31ecb6de09af78af1969c54ab984b6d2fd9aa"
+  default = "opensuse/tumbleweed:latest@sha256:3e9469d86e829e8d3d5058b7bca2f3020bb41503a9a3d333c0d0a896eb857e90"
 }
 
 # The support matrix. CI derives its build matrix from `bake --print`, so a cell absent
