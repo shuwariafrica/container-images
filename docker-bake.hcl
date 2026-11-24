@@ -27,7 +27,7 @@ variable "ATTEST" {
 
 # The digest builds; the tag is informational. Tracked by .github/renovate.json.
 variable "BASE_EL10" {
-  default = "oraclelinux:10@sha256:c45341d07ee8d2397656d34e3e17306bc60c92ac4243da2ecfe8cdee8f25c01e"
+  default = "oraclelinux:10@sha256:4cb79926704d177d6f4899be9f80a31589d724cc4590404b05fc76cccf65850f"
 }
 variable "BASE_ALPINE" {
   default = "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf"
